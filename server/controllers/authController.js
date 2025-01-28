@@ -48,6 +48,64 @@ export const register = async (req, res) => {
       //in development, the same site is strict and in production, the same site is none since in production, the frontend and backend are on different domains and we want to allow the cookie to be sent across different domains
       maxAge: 7 * 24 * 60 * 60 * 1000, //7 days in milliseconds
     }); //send the token as a cookie
+    return res.json({ success: true, message: "Registration Successful" });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.json({
+      success: false,
+      message: "Email and Password are required",
+    });
+  }
+
+  try {
+    //find the user with the email id
+    const user = await userModel.findOne({ email });
+
+    if (!user) {
+      return res.json({ suceess: false, message: "Invalid Email" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.json({ success: false, message: "Invalid Password" });
+    }
+    //generate a token for the user using jwt if password and email is all gucci.
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d",
+    }); //whenever a new user is created, a token is generated for the user
+
+    //after creating the token, we have to send the token using the cookie
+    //only http request can access the cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      //secure is false for a development environment and true for a production environment
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      //in development, the same site is strict and in production, the same site is none since in production, the frontend and backend are on different domains and we want to allow the cookie to be sent across different domains
+      maxAge: 7 * 24 * 60 * 60 * 1000, //7 days in milliseconds
+    }); //send the token as a cookie
+    return res.json({ success: true, message: "Login Successful" });
+  } catch (error) {
+    res.json({ success: false, message: error.message });
+  }
+};
+export const logout = async (req, res) => {
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      //secure is false for a development environment and true for a production environment
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+    });
+    return res.json({ success: true, message: "Logged out" });
   } catch (error) {
     res.json({ success: false, message: error.message });
   }
